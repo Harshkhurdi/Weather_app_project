@@ -662,7 +662,7 @@ svg { flex: none; }
   .brand-mark svg { width: 22px; height: 22px; }
   .wordmark { gap: 7px; font-size: 13px; }
   .current-weather { min-height: 578px; padding-block: 143px 34px; }
-  .sky-art { background-position: 68% 41%; }
+  .sky-art { background-position: 74% 41%; }
   .current-weather::after {
     background:
       linear-gradient(180deg, #110e18b0, #110e1840 37%, #110e1875 66%, #101012),
