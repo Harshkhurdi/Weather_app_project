@@ -2,6 +2,8 @@
 
 A responsive React and Vite weather app for current conditions, the next 24 hours, and the next seven days. It uses Open-Meteo directly from the browser and starts in Chandigarh.
 
+Daylight and moonlit sky scenes follow local conditions. The daylight track plots elapsed time from forecast sunrise to sunset.
+
 ## Run locally
 
 ```sh

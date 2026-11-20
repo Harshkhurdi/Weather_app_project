@@ -5,49 +5,79 @@ import {
   relevantHours, temperature, uvBand, windSpeed,
 } from './weather';
 
+function Daylight({ sunrise, sunset, time, timezone }) {
+  if (![sunrise, sunset, time].every(Number.isFinite) || sunset <= sunrise) return null;
+  const duration = sunset - sunrise;
+  const minutes = Math.round(duration / 60);
+  const progress = (time - sunrise) / duration;
+  const onArc = progress >= 0 && progress <= 1;
+  const angle = Math.PI * (1 - progress);
+  const sunX = 124 + 108 * Math.cos(angle);
+  const sunY = 75 - 60 * Math.sin(angle);
+  const path = 'M 16,75 A 108,60 0 0 1 232,75';
+
+  return (
+    <figure className="daylight">
+      <figcaption><span>Daylight</span><strong>{Math.floor(minutes / 60)}h {minutes % 60}m</strong></figcaption>
+      <svg viewBox="0 0 248 83" aria-hidden="true">
+        <path className="daylight-horizon" d="M 0,75 H 248" />
+        <path className="daylight-orbit" d={path} pathLength="1" />
+        {onArc && (
+          <g>
+            <path className="daylight-elapsed" d={`M 16,75 A 108,60 0 0 1 ${sunX},${sunY}`} />
+            <circle className="daylight-halo" cx={sunX} cy={sunY} r="9" />
+            <circle className="daylight-sun" cx={sunX} cy={sunY} r="3.7" />
+          </g>
+        )}
+      </svg>
+      <div className="daylight-times">
+        <span><b>{clock(sunrise, timezone)}</b>Sunrise</span>
+        <span><b>{clock(sunset, timezone)}</b>Sunset</span>
+      </div>
+    </figure>
+  );
+}
+
 export function CurrentWeather({ city, forecast, unit, favorite, onFavorite }) {
   const { current, daily, timezone } = forecast;
   const now = condition(current.weather_code, current.is_day);
   return (
     <section className={`current-weather sky-${now.palette}`} aria-labelledby="city-heading">
-      <div className="hero-content">
-        <div className="hero-top">
-          <span className="micro-label current-label"><span className="sky-dot" /> Current conditions</span>
-          {!city.device && <button type="button" className="icon-button favorite-button" onClick={onFavorite}
-            aria-label={favorite ? `Remove ${city.name} from saved cities` : `Save ${city.name}`} aria-pressed={favorite}>
-            <Icon name="star" size={19} />
-          </button>}
-        </div>
-        <div className="hero-location">
-          <h1 id="city-heading">{city.name}</h1>
-          <p><Icon name="pin" size={15} /> {placeLabel(city)}</p>
-        </div>
+      <div className="sky-art" aria-hidden="true" />
+      <div className="hero-content page-content">
         <div className="hero-reading">
+          <div className="hero-location">
+            <div className="hero-place">
+              <span><Icon name="pin" size={14} /> {placeLabel(city) || 'Current conditions'}</span>
+              {!city.device && <button type="button" className="icon-button favorite-button" onClick={onFavorite}
+                aria-label={favorite ? `Remove ${city.name} from saved cities` : `Save ${city.name}`} aria-pressed={favorite}>
+                <Icon name="star" size={16} />
+              </button>}
+            </div>
+            <h1 id="city-heading">{city.name}</h1>
+          </div>
           <p className="hero-temp" aria-label={temperature(current.temperature_2m, unit, true)}>
-            {temperature(current.temperature_2m, unit)}<span>{unit}</span>
+            {temperature(current.temperature_2m, unit).replace('°', '')}<span className="hero-unit">°<small>{unit}</small></span>
           </p>
-          <div className="hero-condition">
-            <WeatherGlyph name={now.icon} size={34} />
-            <span>{now.label}</span>
+          <div className="hero-metrics">
+            <p className="hero-condition"><WeatherGlyph name={now.icon} size={28} /> {now.label}</p>
+            <span>Feels like <strong>{temperature(current.apparent_temperature, unit)}</strong></span>
+            <span><Icon name="up" size={15} /> <span className="sr-only">High</span><strong>{temperature(daily[0].temperature_2m_max, unit)}</strong></span>
+            <span><Icon name="down" size={15} /> <span className="sr-only">Low</span><strong>{temperature(daily[0].temperature_2m_min, unit)}</strong></span>
           </div>
         </div>
-        <div className="hero-bottom">
-          <div className="hero-metrics">
-            <span className="hero-feels">Feels like <strong>{temperature(current.apparent_temperature, unit)}</strong></span>
-            <span><Icon name="up" size={14} /> <span className="sr-only">High</span><strong>{temperature(daily[0].temperature_2m_max, unit)}</strong></span>
-            <span><Icon name="down" size={14} /> <span className="sr-only">Low</span><strong>{temperature(daily[0].temperature_2m_min, unit)}</strong></span>
-          </div>
-          <p className="hero-date"><Icon name="clock" size={15} /> {clock(current.time, timezone, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} local</p>
+        <div className="hero-observation">
+          <p className="hero-date">{clock(current.time, timezone, { weekday: 'long', month: 'short', day: 'numeric' })}<span>{clock(current.time, timezone)} local</span></p>
+          <Daylight sunrise={daily[0].sunrise} sunset={daily[0].sunset} time={current.time} timezone={timezone} />
         </div>
       </div>
     </section>
   );
 }
 
-export function PanelHeading({ icon, title, id, children, subtitle }) {
+function PanelHeading({ title, id, children, subtitle }) {
   return (
     <div className="panel-heading">
-      <span className="panel-icon"><Icon name={icon} size={19} /></span>
       <div className="panel-title">
         <h2 id={id}>{title}</h2>
         {subtitle && <p>{subtitle}</p>}
@@ -69,7 +99,7 @@ export function DailyForecast({ forecast, unit, selected, onSelect }) {
   const selectedDay = daily[selected];
   return (
     <section className="panel daily-panel" aria-labelledby="daily-title">
-      <PanelHeading icon="calendar" title="7-day forecast" id="daily-title" subtitle="Select a day to see its hourly forecast" />
+      <PanelHeading title="The week ahead" id="daily-title" subtitle="7-day forecast · Select a day for its hourly outlook" />
       <ul className="daily-list">
         {daily.map((day, index) => {
           const sky = condition(day.weather_code);
@@ -82,28 +112,29 @@ export function DailyForecast({ forecast, unit, selected, onSelect }) {
               <button type="button" aria-pressed={index === selected} className="daily-row" onClick={() => onSelect(index)}
                 aria-label={`${label}, ${sky.label}, low ${temperature(low, unit, true)}, high ${temperature(high, unit, true)}, precipitation ${measure(day.precipitation_probability_max, '%')}`}>
                 <span className="day-name">{label}</span>
-                <span className="day-weather" title={sky.label}><WeatherGlyph name={sky.icon} size={22} /></span>
-                <span className="day-rain">{measure(day.precipitation_probability_max, '%')}</span>
-                <span className="day-low">{temperature(low, unit)}</span>
+                <span className="day-weather" title={sky.label}><WeatherGlyph name={sky.icon} size={30} /></span>
+                <span className="day-temps">
+                  <strong>{temperature(high, unit)}</strong><span>{temperature(low, unit)}</span>
+                </span>
                 <span className="day-range" aria-hidden="true">
                   {hasRange && <span style={{ left: `${(low - weekLow) / weekSpan * 100}%`, width: `${(high - low) / weekSpan * 100}%` }} />}
                 </span>
-                <span className="day-high">{temperature(high, unit)}</span>
+                <span className="day-rain"><Icon name="drop" size={13} /> {measure(day.precipitation_probability_max, '%')}</span>
               </button>
             </li>
           );
         })}
       </ul>
       <div className="daily-footer">
-        <span><Icon name="drop" size={15} /> Precipitation chance</span>
-        <span title="Forecast precipitation total">{rainfall(selectedDay.precipitation_sum, unit)} total</span>
+        <span><Icon name="drop" size={14} /> Precipitation chance</span>
+        <span>{selected === 0 ? 'Today' : clock(selectedDay.time, timezone, { weekday: 'short' })} · {rainfall(selectedDay.precipitation_sum, unit)} expected</span>
       </div>
     </section>
   );
 }
 
-const columnWidth = 72;
-const chartHeight = 75;
+const columnWidth = 76;
+const chartHeight = 114;
 
 function TrendLine({ values, active, mode }) {
   const gradient = useId();
@@ -127,7 +158,7 @@ function TrendLine({ values, active, mode }) {
           <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
-      {[18, 45, 73].map(y => <line key={y} className="chart-rule" x1="0" x2={width} y1={y} y2={y} />)}
+      {[21, 65, 108].map(y => <line key={y} className="chart-rule" x1="0" x2={width} y1={y} y2={y} />)}
       {segments.map(segment => {
         const line = segment.map(point => `${point.x},${point.y}`).join(' ');
         return (
@@ -181,7 +212,7 @@ export function HourlyForecast({ forecast, day, unit, mode, setMode }) {
 
   return (
     <section className="panel hourly-panel" aria-labelledby="hourly-title">
-      <PanelHeading icon="clock" title="Hourly forecast" id="hourly-title" subtitle={title}>
+      <PanelHeading title="Hour by hour" id="hourly-title" subtitle={title}>
         <div className="segmented chart-modes" role="group" aria-label="Hourly chart metric">
           <button type="button" aria-pressed={mode === 'temp'} onClick={() => setMode('temp')}>Temp</button>
           <button type="button" aria-pressed={mode === 'rain'} onClick={() => setMode('rain')}>Precip.</button>
@@ -233,7 +264,7 @@ export function AirQuality({ air, loading, timezone }) {
   const position = segment < 0 ? 100 : 100 / 6 * (segment + (Math.max(0, air.us_aqi) - ranges[segment]) / (ranges[segment + 1] - ranges[segment]));
   return (
     <section className="panel air-panel" aria-labelledby="air-title">
-      <PanelHeading icon="air" title="Air quality" subtitle="US AQI · Model estimate" id="air-title" />
+      <PanelHeading title="Air quality" subtitle="US AQI · Model estimate" id="air-title" />
       {band ? (
         <>
           <div className="air-reading">
@@ -259,20 +290,17 @@ export function Highlights({ forecast, unit }) {
   const { current, timezone, daily } = forecast;
   const [hour] = relevantHours(forecast, 0);
   const today = daily[0];
-  const minutes = Math.round((today.sunset - today.sunrise) / 60);
-  const daylight = Number.isFinite(today.sunset) && Number.isFinite(today.sunrise) && minutes > 0
-    ? `${Math.floor(minutes / 60)}h ${minutes % 60}m daylight` : 'Daylight duration unavailable';
   const cards = [
     { icon: 'wind', title: 'Wind', value: windSpeed(current.wind_speed_10m, unit), note: [direction(current.wind_direction_10m), `Gusts ${windSpeed(current.wind_gusts_10m, unit)}`].filter(Boolean).join(' · ') },
     { icon: 'humidity', title: 'Humidity', value: measure(current.relative_humidity_2m, '%'), note: 'Relative humidity' },
     { icon: 'sun', title: 'UV index', value: measure(hour?.uv_index, '', 1), note: uvBand(hour?.uv_index) || 'Hourly reading unavailable' },
     { icon: 'eye', title: 'Visibility', value: distance(hour?.visibility, unit), note: 'Hourly estimate' },
     { icon: 'gauge', title: 'Pressure', value: pressure(current.pressure_msl, unit), note: 'At sea level' },
-    { icon: 'horizon', title: 'Sunset', value: clock(today.sunset, timezone), note: Number.isFinite(today.sunrise) ? `Rise ${clock(today.sunrise, timezone)} · ${daylight}` : daylight },
+    { icon: 'drop', title: 'Precipitation', value: measure(today.precipitation_probability_max, '%'), note: `${rainfall(today.precipitation_sum, unit)} expected today` },
   ];
   return (
     <section className="highlights" aria-labelledby="highlights-title">
-      <h2 id="highlights-title">Today’s highlights</h2>
+      <h2 id="highlights-title">Today’s conditions</h2>
       <div className="highlight-grid">
         {cards.map(card => (
           <article className="panel detail-card" key={card.title}>

@@ -123,8 +123,9 @@ export default function App() {
 
   function selectDay(next) {
     setDay(next);
-    if (matchMedia('(max-width: 760px)').matches) {
-      document.getElementById('hourly-title')?.closest('section')?.scrollIntoView({
+    const section = document.getElementById('hourly-title')?.closest('section');
+    if (section && section.getBoundingClientRect().top > window.innerHeight * 0.63) {
+      section.scrollIntoView({
         behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
       });
     }
@@ -141,7 +142,7 @@ export default function App() {
         <div className="header-inner">
           <a className="wordmark" href={demo ? './?demo=1' : './'} aria-label="Strata Weather home">
             <span className="brand-mark"><Icon name="logo" size={25} /></span>
-            <span>Strata<span className="wordmark-dot">.</span></span>
+            <span>Strata</span>
           </a>
           <CitySearch onSelect={selectCity} controlRef={searchInput} />
           <div className="header-actions">
@@ -156,69 +157,71 @@ export default function App() {
         </div>
       </header>
 
-      <main id="forecast" className="page-content">
-        <div className="workspace-bar">
-          <div className="saved-cities" aria-label="Saved cities">
-            <span className="saved-heading"><Icon name="star" size={15} /> Saved cities</span>
-            {favorites.map(saved => (
-              <button key={saved.id} type="button" className="city-chip" aria-pressed={samePlace(saved, city)} onClick={() => selectCity(saved)}>
-                {saved.name}
-              </button>
-            ))}
-            <button type="button" className="icon-button add-city" aria-label="Find a city to save" onClick={() => searchInput.current?.focus()}><Icon name="add" size={16} /></button>
-          </div>
-          <div className="forecast-status">
-            <span className={`status-chip status-${status}`} role="status"><i />{label}</span>
-            <button type="button" className="icon-button refresh-button" aria-label={demo ? 'Load live forecast' : 'Refresh forecast'}
-              onClick={() => { exitDemo(); setRefresh(value => value + 1); }} disabled={data.loading}>
-              <Icon name="refresh" size={17} />
-            </button>
-          </div>
-        </div>
-
-        {locationMessage && (
-          <div className="notice" role="status"><Icon name="locate" size={17} /><p>{locationMessage}</p>
-            <button type="button" className="icon-button" aria-label="Dismiss location message" onClick={() => setLocationMessage('')}><Icon name="close" size={16} /></button>
-          </div>
-        )}
-        {data.error && forecast && !data.sample && (
-          <div className="notice" role="status">
-            <Icon name="clock" size={17} /><p>Live updates are unavailable. Forecast saved at {clock(forecast.fetchedAt / 1000, forecast.timezone)} local.</p>
-          </div>
-        )}
+      <main id="forecast">
         {forecast ? (
-          <>
-            <div className="forecast-grid">
-              <div className="forecast-primary">
-                <CurrentWeather city={city} forecast={forecast} unit={unit} favorite={favorite} onFavorite={toggleFavorite} />
-                <HourlyForecast key={`${city.id}-${day}-${data.sample ? 'sample' : 'live'}`}
-                  forecast={forecast} day={day} unit={unit} mode={mode} setMode={setMode} />
-              </div>
-              <div className="forecast-secondary">
-                <DailyForecast forecast={forecast} unit={unit} selected={day} onSelect={selectDay} />
-                <AirQuality air={data.air} loading={data.airLoading} timezone={forecast.timezone} />
-              </div>
-            </div>
-            <Highlights forecast={forecast} unit={unit} />
-          </>
+          <CurrentWeather city={city} forecast={forecast} unit={unit} favorite={favorite} onFavorite={toggleFavorite} />
         ) : (
-          <section className="panel forecast-placeholder" aria-live="polite">
-            <span className="panel-icon"><Icon name={data.loading ? 'clock' : 'logo'} size={23} /></span>
-            <h1>{data.loading ? `Loading ${city.name}` : `Forecast unavailable for ${city.name}`}</h1>
-            <p>{data.loading ? 'Fetching the latest weather model.' : 'The weather service could not return this forecast. Try again or choose another city.'}</p>
-            {data.error && <button type="button" className="primary-button" onClick={() => setRefresh(value => value + 1)}>Try again</button>}
+          <section className="forecast-placeholder" aria-live="polite">
+            <div className="page-content placeholder-content">
+              <Icon name={data.loading ? 'clock' : 'logo'} size={26} />
+              <h1>{data.loading ? `Loading ${city.name}` : `Forecast unavailable for ${city.name}`}</h1>
+              <p>{data.loading ? 'Fetching the latest weather model.' : 'Try again or choose another city.'}</p>
+              {data.error && <button type="button" className="primary-button" onClick={() => setRefresh(value => value + 1)}>Try again</button>}
+            </div>
           </section>
         )}
-
-        <footer className="app-footer">
-          <span className="footer-brand"><Icon name="logo" size={19} /> Strata Weather</span>
-          <p>{data.sample ? 'Illustrative weather and air quality readings.' : 'Forecast times are local to the selected location.'}</p>
-          <div className="attribution">
-            <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo <Icon name="arrowOut" size={12} /></a>
-            <a href="https://atmosphere.copernicus.eu/" target="_blank" rel="noreferrer">CAMS <Icon name="arrowOut" size={12} /></a>
-            <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames <Icon name="arrowOut" size={12} /></a>
+        <div className="page-content">
+          <div className="workspace-bar">
+            <div className="saved-cities" aria-label="Saved cities">
+              <span className="saved-heading"><Icon name="star" size={15} /> Saved cities</span>
+              {favorites.map(saved => (
+                <button key={saved.id} type="button" className="city-chip" aria-pressed={samePlace(saved, city)} onClick={() => selectCity(saved)}>
+                  {saved.name}
+                </button>
+              ))}
+              <button type="button" className="icon-button add-city" aria-label="Find a city to save" onClick={() => searchInput.current?.focus()}><Icon name="add" size={16} /></button>
+            </div>
+            <div className="forecast-status">
+              <span className={`status-chip status-${status}`} role="status"><i />{label}</span>
+              <button type="button" className="icon-button refresh-button" aria-label={demo ? 'Load live forecast' : 'Refresh forecast'}
+                onClick={() => { exitDemo(); setRefresh(value => value + 1); }} disabled={data.loading}>
+                <Icon name="refresh" size={17} />
+              </button>
+            </div>
           </div>
-        </footer>
+
+          {locationMessage && (
+            <div className="notice" role="status"><Icon name="locate" size={17} /><p>{locationMessage}</p>
+              <button type="button" className="icon-button" aria-label="Dismiss location message" onClick={() => setLocationMessage('')}><Icon name="close" size={16} /></button>
+            </div>
+          )}
+          {data.error && forecast && !data.sample && (
+            <div className="notice" role="status">
+              <Icon name="clock" size={17} /><p>Live updates are unavailable. Forecast saved at {clock(forecast.fetchedAt / 1000, forecast.timezone)} local.</p>
+            </div>
+          )}
+          {forecast && (
+            <>
+              <DailyForecast forecast={forecast} unit={unit} selected={day} onSelect={selectDay} />
+              <HourlyForecast key={`${city.id}-${day}-${data.sample ? 'sample' : 'live'}`}
+                forecast={forecast} day={day} unit={unit} mode={mode} setMode={setMode} />
+              <div className="conditions-grid">
+                <Highlights forecast={forecast} unit={unit} />
+                <AirQuality air={data.air} loading={data.airLoading} timezone={forecast.timezone} />
+              </div>
+            </>
+          )}
+
+          <footer className="app-footer">
+            <span className="footer-brand"><Icon name="logo" size={19} /> Strata Weather</span>
+            <p>{data.sample ? 'Illustrative weather and air quality readings.' : 'Forecast times are local to the selected location.'}</p>
+            <div className="attribution">
+              <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo <Icon name="arrowOut" size={12} /></a>
+              <a href="https://atmosphere.copernicus.eu/" target="_blank" rel="noreferrer">CAMS <Icon name="arrowOut" size={12} /></a>
+              <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames <Icon name="arrowOut" size={12} /></a>
+            </div>
+          </footer>
+        </div>
       </main>
     </div>
   );
